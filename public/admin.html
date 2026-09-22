@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DTRUNG Redeem Manager</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#070b12;color:#eef3ff;font-family:system-ui,Arial,sans-serif}
+.wrap{max-width:1000px;margin:auto;padding:22px}.card{background:#101725;border:1px solid #27344a;border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 10px 30px #0005}
+h1{margin:0 0 5px}.muted{color:#91a0b8}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+label{display:block;color:#b9c4d8;font-size:14px;margin-bottom:6px}input,select{width:100%;padding:12px;border-radius:10px;border:1px solid #34445e;background:#0a101a;color:white;font-size:16px}
+button{border:0;border-radius:10px;padding:12px 16px;background:#2d7dff;color:#fff;font-weight:700;cursor:pointer}button.danger{background:#b63d4d}button.secondary{background:#26344a}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #26344a;text-align:left;font-size:14px}code{background:#080d15;padding:4px 7px;border-radius:6px}
+#status{min-height:22px}.hidden{display:none}@media(max-width:700px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>🎁 DTRUNG Redeem Manager</h1>
+    <div class="muted">Tạo và quản lý mã redeem cho game DTRUNG.</div>
+  </div>
+
+  <div class="card">
+    <div class="grid">
+      <div><label>Admin key</label><input id="key" type="password" placeholder="Nhập ADMIN_KEY"></div>
+      <div><label>Mã redeem</label><input id="code" maxlength="32" placeholder="VD: VIP2026"></div>
+      <div><label>Xu</label><input id="coins" type="number" min="0" value="0"></div>
+      <div><label>Lượt Hỗn chiến</label><input id="chaos" type="number" min="0" value="0"></div>
+      <div><label>Số lần mỗi người được dùng</label><input id="uses" type="number" min="1" value="1"></div>
+      <div><label>Giới hạn tổng số lượt dùng</label><input id="totalUses" type="number" min="1" value="100"></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button onclick="createCode()">➕ Tạo code</button>
+      <button class="secondary" onclick="loadCodes()">🔄 Làm mới</button>
+    </div>
+    <p id="status" class="muted"></p>
+  </div>
+
+  <div class="card">
+    <h2>📜 Code hiện có</h2>
+    <div style="overflow:auto">
+      <table><thead><tr><th>Code</th><th>Thưởng</th><th>Đã dùng</th><th>Giới hạn</th><th></th></tr></thead>
+      <tbody id="list"></tbody></table>
+    </div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+async function api(path,opt={}){
+  const key=$('key').value.trim();
+  const headers=Object.assign({'Content-Type':'application/json','x-admin-key':key},opt.headers||{});
+  const r=await fetch(path,Object.assign({},opt,{headers}));
+  const d=await r.json(); if(!r.ok)throw Error(d.message||'Lỗi'); return d;
+}
+async function createCode(){
+  try{
+    const code=$('code').value.trim().toUpperCase();
+    const coins=+$('coins').value||0, chaos=+$('chaos').value||0;
+    const perPlayer=+$('uses').value||1, totalUses=+$('totalUses').value||100;
+    if(!code)return $('status').textContent='❌ Nhập mã.';
+    if(!coins&&!chaos)return $('status').textContent='❌ Phải có phần thưởng.';
+    const d=await api('/api/admin/codes',{method:'POST',body:JSON.stringify({code,coins,chaos,perPlayer,totalUses})});
+    $('status').textContent='✅ '+d.message;
+    $('code').value=''; await loadCodes();
+  }catch(e){$('status').textContent='❌ '+e.message}
+}
+async function loadCodes(){
+  try{
+    const d=await api('/api/admin/codes');
+    $('list').innerHTML=d.codes.map(c=>`<tr>
+      <td><code>${esc(c.code)}</code></td>
+      <td>${c.coins||0} 🪙 · ${c.chaos||0} lượt</td>
+      <td>${c.used||0}</td><td>${c.totalUses}</td>
+      <td><button class="danger" onclick="delCode('${esc(c.code)}')">Xóa</button></td>
+    </tr>`).join('');
+  }catch(e){$('status').textContent='❌ '+e.message}
+}
+async function delCode(code){
+  if(!confirm('Xóa code '+code+'?'))return;
+  try{const d=await api('/api/admin/codes/'+encodeURIComponent(code),{method:'DELETE'});$('status').textContent='✅ '+d.message;loadCodes()}catch(e){$('status').textContent='❌ '+e.message}
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+loadCodes();
+</script>
+</body>
+</html>

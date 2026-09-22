@@ -1,0 +1,12 @@
+{
+  "name": "dtrung-redeem-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DTRUNG game + redeem code manager",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
